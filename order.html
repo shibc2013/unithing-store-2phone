@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>确认订单</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif; background:#f5f5f5; color:#333; font-size:14px; line-height:1.6; }
+
+/* ===== Header ===== */
+.header { background:#fff; padding:12px 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #eee; position:sticky; top:0; z-index:100; }
+.back-btn { font-size:20px; color:#333; text-decoration:none; padding:4px 8px; border-radius:4px; transition:background .15s; }
+.back-btn:hover { background:#f0f0f0; }
+.header-title { font-size:17px; font-weight:600; color:#1a1a1a; }
+
+.wrapper { max-width:700px; margin:0 auto; padding:16px; }
+
+/* ===== Card ===== */
+.card { background:#fff; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.card-title { font-size:15px; font-weight:600; color:#1a1a1a; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+
+/* ===== 商品信息 ===== */
+.product-info { display:flex; gap:16px; align-items:flex-start; }
+.product-icon { width:60px; height:60px; background:linear-gradient(135deg,#667eea,#764ba2); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; font-weight:700; flex-shrink:0; }
+.product-detail h3 { font-size:16px; font-weight:600; color:#1a1a1a; margin-bottom:4px; }
+.product-detail .sub { font-size:12px; color:#999; }
+
+/* ===== 选项组 ===== */
+.opt-group { margin-bottom:14px; }
+.opt-label { font-size:13px; color:#666; margin-bottom:6px; font-weight:500; }
+.opt-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { padding:6px 14px; border:1px solid #e0e0e0; border-radius:20px; font-size:12px; color:#555; cursor:pointer; transition:all .15s; background:#fff; user-select:none; }
+.chip:hover { border-color:#bbb; }
+.chip.active { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+
+/* ===== 收货信息 ===== */
+.form-group { margin-bottom:12px; }
+.form-group label { display:block; font-size:13px; color:#666; margin-bottom:4px; }
+.form-group input, .form-group textarea { width:100%; padding:10px 12px; border:1px solid #e0e0e0; border-radius:8px; font-size:14px; outline:none; transition:border .2s; font-family:inherit; }
+.form-group input:focus, .form-group textarea:focus { border-color:#1a1a1a; }
+.form-group textarea { resize:vertical; min-height:60px; }
+.form-row { display:flex; gap:12px; }
+.form-row .form-group { flex:1; }
+
+/* ===== 订单摘要 ===== */
+.summary-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:13px; color:#666; }
+.summary-row .val { color:#333; font-weight:500; }
+.summary-row.total { border-top:1px solid #f0f0f0; padding-top:12px; margin-top:4px; font-size:16px; font-weight:600; color:#1a1a1a; }
+.summary-row.total .val { color:#c0392b; font-size:18px; }
+
+/* ===== 提交按钮 ===== */
+.submit-btn { width:100%; padding:14px; background:#1a1a1a; color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; transition:all .15s; margin-top:8px; }
+.submit-btn:hover { background:#333; }
+.submit-btn:active { transform:scale(.98); }
+
+/* ===== 运费 ===== */
+.freight-tag { display:inline-block; padding:2px 8px; background:#e8f5e9; color:#2e7d32; border-radius:4px; font-size:11px; margin-left:6px; }
+
+/* ===== 支付弹窗 ===== */
+.overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:999; align-items:center; justify-content:center; }
+.overlay.active { display:flex; }
+.pay-modal { background:#fff; border-radius:16px; padding:24px 20px; max-width:360px; width:90%; text-align:center; animation:popIn .25s ease; }
+@keyframes popIn { from { transform:scale(.9); opacity:0; } to { transform:scale(1); opacity:1; } }
+.pay-modal .close-btn { position:absolute; top:12px; right:16px; font-size:22px; color:#999; cursor:pointer; line-height:1; }
+.pay-modal .close-btn:hover { color:#333; }
+.pay-title { font-size:17px; font-weight:600; color:#1a1a1a; margin-bottom:4px; }
+.pay-amount { font-size:28px; font-weight:700; color:#c0392b; margin:8px 0 16px; }
+.pay-amount small { font-size:14px; font-weight:400; color:#999; }
+
+/* Tab 切换 */
+.pay-tabs { display:flex; gap:0; margin-bottom:16px; border-radius:8px; overflow:hidden; border:1px solid #eee; }
+.pay-tab { flex:1; padding:8px; font-size:13px; cursor:pointer; background:#fafafa; color:#666; transition:all .15s; border:none; font-family:inherit; }
+.pay-tab.active { background:#1a1a1a; color:#fff; }
+.pay-qr { width:200px; height:200px; margin:0 auto 12px; border:1px solid #eee; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.pay-qr img { max-width:100%; max-height:100%; }
+.pay-qr .qr-placeholder { color:#ccc; font-size:12px; }
+.pay-tips { text-align:left; margin-top:12px; }
+.pay-tips p { font-size:12px; color:#c0392b; line-height:1.8; padding-left:8px; border-left:3px solid #c0392b; }
+
+/* ===== 响应式 ===== */
+@media (max-width:500px) {
+  .wrapper { padding:12px 10px; }
+  .product-info { gap:12px; }
+  .form-row { flex-direction:column; gap:0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<div class="header">
+  <a class="back-btn" href="index.html">&larr;</a>
+  <span class="header-title">确认订单</span>
+</div>
+
+<div class="wrapper">
+
+  <!-- ===== 商品信息 ===== -->
+  <div class="card">
+    <div class="card-title">商品信息</div>
+    <div class="product-info">
+      <div class="product-icon" id="productIcon">📱</div>
+      <div class="product-detail">
+        <h3 id="productName">加载中...</h3>
+        <div class="sub" id="productSub">请稍候</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 选择颜色 ===== -->
+  <div class="card" id="colorCard">
+    <div class="card-title">选择颜色</div>
+    <div class="opt-chips" id="colorChips">
+      <!-- JS 动态生成 -->
+    </div>
+  </div>
+
+  <!-- ===== 选择成色 ===== -->
+  <div class="card">
+    <div class="card-title">选择成色</div>
+    <div class="opt-chips" id="conditionChips">
+      <div class="chip active" data-cond="准新" data-mult="1">准新</div>
+      <div class="chip" data-cond="99新" data-mult="0.95">99新</div>
+      <div class="chip" data-cond="95新" data-mult="0.88">95新</div>
+      <div class="chip" data-cond="9新" data-mult="0.80">9新</div>
+    </div>
+  </div>
+
+  <!-- ===== 选择 RAM ===== -->
+  <div class="card" id="ramCard">
+    <div class="card-title">运行内存 (RAM)</div>
+    <div class="opt-chips" id="ramChips">
+      <!-- JS 动态生成 -->
+    </div>
+  </div>
+
+  <!-- ===== 选择 ROM ===== -->
+  <div class="card" id="romCard">
+    <div class="card-title">机身存储 (ROM)</div>
+    <div class="opt-chips" id="romChips">
+      <!-- JS 动态生成 -->
+    </div>
+  </div>
+
+  <!-- ===== 收货信息 ===== -->
+  <div class="card">
+    <div class="card-title">收货信息</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>收货人姓名 *</label>
+        <input type="text" id="buyerName" placeholder="请输入姓名">
+      </div>
+      <div class="form-group">
+        <label>联系电话 *</label>
+        <input type="tel" id="buyerPhone" placeholder="请输入手机号" maxlength="11">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>收货地址 *</label>
+      <input type="text" id="buyerAddress" placeholder="请输入详细收货地址">
+    </div>
+    <div class="form-group">
+      <label>备注（可选）</label>
+      <textarea id="buyerNote" placeholder="如有特殊要求请在此备注"></textarea>
+    </div>
+  </div>
+
+  <!-- ===== 订单摘要 ===== -->
+  <div class="card">
+    <div class="card-title">订单摘要</div>
+    <div class="summary-row">
+      <span>商品</span>
+      <span class="val" id="summaryProduct">-</span>
+    </div>
+    <div class="summary-row">
+      <span>颜色</span>
+      <span class="val" id="summaryColor">请选择</span>
+    </div>
+    <div class="summary-row">
+      <span>成色</span>
+      <span class="val" id="summaryCond">准新</span>
+    </div>
+    <div class="summary-row">
+      <span>内存</span>
+      <span class="val" id="summaryRam">请选择</span>
+    </div>
+    <div class="summary-row">
+      <span>存储</span>
+      <span class="val" id="summaryRom">请选择</span>
+    </div>
+    <div class="summary-row">
+      <span>运费</span>
+      <span class="val">包邮 <span class="freight-tag">包邮</span></span>
+    </div>
+    <div class="summary-row total">
+      <span>合计</span>
+      <span class="val" id="summaryTotal">¥0</span>
+    </div>
+  </div>
+
+  <!-- ===== 提交 ===== -->
+  <button class="submit-btn" id="submitBtn">立即支付 ¥0</button>
+
+</div><!-- /.wrapper -->
+
+<!-- ===== 支付弹窗 ===== -->
+<div class="overlay" id="payOverlay">
+  <div class="pay-modal" style="position:relative;">
+    <div class="close-btn" id="payClose">&times;</div>
+    <div class="pay-title">扫码支付</div>
+    <div class="pay-amount" id="payAmount">¥0</div>
+
+    <div class="pay-tabs">
+      <button class="pay-tab active" id="tabWechat" onclick="switchPay('wechat')">微信支付</button>
+      <button class="pay-tab" id="tabAlipay" onclick="switchPay('alipay')">支付宝</button>
+    </div>
+
+    <div class="pay-qr" id="qrWechat">
+      <!-- 替换：上传微信收款码，命名为 wechat-pay.png -->
+      <img src="wechat-pay.png" alt="微信收款码" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <div class="qr-placeholder" style="display:none;">请上传 wechat-pay.png</div>
+    </div>
+    <div class="pay-qr" id="qrAlipay" style="display:none;">
+      <!-- 替换：上传支付宝收款码，命名为 alipay-pay.png -->
+      <img src="alipay-pay.png" alt="支付宝收款码" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <div class="qr-placeholder" style="display:none;">请上传 alipay-pay.png</div>
+    </div>
+
+    <div class="pay-tips">
+      <p>付款时请备注姓名</p>
+      <p>付款后请到主页面最下方联系客服确认后续事项</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 机型数据库（颜色 / RAM / ROM） ===== */
+const phoneDB = {
+  // iPhone
+  'iPhone 13': { colors:['午夜黑','星光白','粉色','蓝色','绿色'], rams:['4GB'], roms:['128GB','256GB','512GB'] },
+  'iPhone 13 Pro': { colors:['石墨黑','银色','金色','远峰蓝','Sierra蓝'], rams:['6GB'], roms:['128GB','256GB','512GB','1TB'] },
+  'iPhone 13 PM': { colors:['石墨黑','银色','金色','远峰蓝'], rams:['6GB'], roms:['128GB','256GB','512GB','1TB'] },
+  'iPhone 14': { colors:['午夜黑','星光白','紫色','蓝色','红色','黄色'], rams:['6GB'], roms:['128GB','256GB','512GB'] },
+  'iPhone 14 Pro': { colors:['深空黑','银色','金色','暗紫色'], rams:['6GB'], roms:['128GB','256GB','512GB','1TB'] },
+  'iPhone 14 PM': { colors:['深空黑','银色','金色','暗紫色'], rams:['6GB'], roms:['128GB','256GB','512GB','1TB'] },
+  'iPhone 15': { colors:['黑色','白色','蓝色','绿色','黄色'], rams:['6GB'], roms:['128GB','256GB','512GB'] },
+  'iPhone 15 Pro': { colors:['黑色钛金属','白色钛金属','蓝色钛金属','原色钛金属'], rams:['8GB'], roms:['128GB','256GB','512GB','1TB'] },
+  'iPhone 15 PM': { colors:['黑色钛金属','白色钛金属','蓝色钛金属','原色钛金属'], rams:['8GB'], roms:['256GB','512GB','1TB'] },
+  'iPhone 16': { colors:['黑色','白色','粉色','深青色','群青色'], rams:['8GB'], roms:['128GB','256GB','512GB'] },
+  'iPhone 16 Pro': { colors:['黑色钛金属','白色钛金属','沙漠钛金属','原色钛金属'], rams:['8GB'], roms:['256GB','512GB','1TB'] },
+  'iPhone 16 PM': { colors:['黑色钛金属','白色钛金属','沙漠钛金属','原色钛金属'], rams:['8GB'], roms:['256GB','512GB','1TB'] },
+  'iPhone 17 Air': { colors:['黑色','白色','青雾蓝','鼠尾草绿','薰衣草紫'], rams:['8GB'], roms:['256GB','512GB'] },
+  'iPhone 17': { colors:['黑色','白色','青雾蓝','鼠尾草绿','薰衣草紫'], rams:['8GB'], roms:['256GB','512GB'] },
+  'iPhone 17 Pro': { colors:['黑色','白色','青雾蓝','鼠尾草绿','薰衣草紫'], rams:['8GB'], roms:['256GB','512GB','1TB'] },
+  'iPhone 17 PM': { colors:['黑色','白色','青雾蓝','鼠尾草绿','薰衣草紫'], rams:['8GB'], roms:['256GB','512GB','1TB'] },
+
+  // 小米
+  '小米17': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '小米17 Pro': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '小米17 Pro Max': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '小米17 Ultra': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['16GB'], roms:['256GB','512GB','1TB'] },
+  '小米17 Ultra 徕卡版': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['16GB'], roms:['512GB','1TB'] },
+  '小米17 Max': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['12GB'], roms:['256GB','512GB'] },
+  '小米17T': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['12GB'], roms:['256GB','512GB'] },
+  '小米17T Pro': { colors:['黑色','白色','雪山粉','冰融蓝'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '小米15': { colors:['黑色','白色','绿色','紫色'], rams:['12GB'], roms:['256GB','512GB'] },
+  '小米15 Pro': { colors:['黑色','白色','绿色','紫色'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '小米15 Ultra': { colors:['黑色','白色','绿色','紫色'], rams:['16GB'], roms:['256GB','512GB','1TB'] },
+  '小米15S Pro': { colors:['黑色','白色','绿色','紫色'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '小米14': { colors:['黑色','白色','岩石青','雪山粉'], rams:['8GB','12GB'], roms:['256GB','512GB'] },
+  '小米14 Pro': { colors:['黑色','白色','岩石青','雪山粉'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '小米14 Ultra': { colors:['黑色','白色','岩石青'], rams:['16GB'], roms:['256GB','512GB','1TB'] },
+  '小米MIX Flip 2': { colors:['黑色','白色','幻影紫'], rams:['12GB'], roms:['256GB','512GB'] },
+  '小米MIX Fold 4': { colors:['黑色','白色','龙鳞纤维'], rams:['12GB','16GB'], roms:['256GB','512GB','1TB'] },
+  '小米Civi 5 Pro': { colors:['黑色','玫瑰紫','星沙白','薄荷绿'], rams:['12GB'], roms:['256GB','512GB'] },
+  '小米Civi 4 Pro': { colors:['黑色','玫瑰紫','星沙白','薄荷绿'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Redmi K90': { colors:['暗影黑','浅海青','祥云白'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Redmi K90 Max': { colors:['暗影黑','浅海青','祥云白'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Redmi K90 Pro Max': { colors:['暗影黑','浅海青','祥云白'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Redmi K80': { colors:['暗影黑','浅海青','祥云白'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Redmi K80 Pro': { colors:['暗影黑','浅海青','祥云白'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Redmi K80 至尊版': { colors:['暗影黑','浅海青','祥云白'], rams:['16GB'], roms:['256GB','512GB'] },
+  'Redmi Turbo 5': { colors:['暗影黑','浅海青','祥云白'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Redmi Turbo 5 MAX': { colors:['暗影黑','浅海青','祥云白'], rams:['16GB'], roms:['256GB','512GB'] },
+  'Redmi Note 15': { colors:['黑色','白色','蓝色','紫色'], rams:['6GB','8GB'], roms:['128GB','256GB'] },
+  'Redmi Note 15 Pro': { colors:['黑色','白色','蓝色','紫色'], rams:['8GB','12GB'], roms:['128GB','256GB','512GB'] },
+  'Redmi Note 15 Pro+': { colors:['黑色','白色','蓝色','紫色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Redmi 17C': { colors:['黑色','白色','绿色','紫色'], rams:['6GB'], roms:['128GB','256GB'] },
+  'Redmi 14C': { colors:['黑色','白色','绿色'], rams:['4GB','6GB'], roms:['128GB','256GB'] },
+
+  // 华为
+  'Mate 80': { colors:['曜石黑','雪域白','晨曦金','云杉绿'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Mate 80 Pro': { colors:['曜石黑','雪域白','晨曦金','云杉绿'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Mate 80 Pro Max': { colors:['曜石黑','雪域白','晨曦金','云杉绿'], rams:['16GB'], roms:['512GB','1TB'] },
+  'Mate 80 RS 非凡大师': { colors:['曜石黑','雪域白','晨曦金','云杉绿'], rams:['16GB'], roms:['512GB','1TB'] },
+  'Mate 70 Air': { colors:['曜石黑','雪域白','晨曦金','云杉绿'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Mate X7': { colors:['黑色','白色','金色','绿色'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Mate X6': { colors:['黑色','白色','金色','绿色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Mate XTs 非凡大师': { colors:['黑色','白色','金色','红色'], rams:['16GB'], roms:['512GB','1TB'] },
+  'Pura 90': { colors:['丝绒黑','雪域白','罗兰紫'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Pura 90 Pro': { colors:['丝绒黑','雪域白','罗兰紫'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Pura 90 Pro Max': { colors:['丝绒黑','雪域白','罗兰紫'], rams:['16GB'], roms:['256GB','512GB','1TB'] },
+  'Pura X Max': { colors:['黑色','白色','金色'], rams:['16GB'], roms:['512GB','1TB'] },
+  'Pura X': { colors:['黑色','白色','金色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Pura 80 Ultra': { colors:['丝绒黑','雪域白','罗兰紫'], rams:['16GB'], roms:['256GB','512GB','1TB'] },
+  'nova 16': { colors:['黑色','白色','绿色','紫色'], rams:['8GB','12GB'], roms:['128GB','256GB'] },
+  'nova 16 Pro': { colors:['黑色','白色','绿色','紫色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'nova 16 Ultra': { colors:['黑色','白色','绿色','紫色'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'nova 16z': { colors:['黑色','白色','绿色','紫色'], rams:['8GB'], roms:['128GB','256GB'] },
+  'nova 15': { colors:['黑色','白色','绿色','金色'], rams:['6GB','8GB'], roms:['128GB','256GB'] },
+  'nova 15 Pro': { colors:['黑色','白色','绿色','金色'], rams:['8GB','12GB'], roms:['128GB','256GB','512GB'] },
+  'nova 15 Ultra': { colors:['黑色','白色','绿色','金色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'nova 14 活力版': { colors:['黑色','白色','蓝色','粉色'], rams:['6GB'], roms:['128GB'] },
+  '畅享 90': { colors:['黑色','白色','蓝色','金色'], rams:['4GB','6GB'], roms:['128GB'] },
+  '畅享 90 Pro Max': { colors:['黑色','白色','蓝色','金色'], rams:['6GB'], roms:['128GB','256GB'] },
+  '畅享 90 Plus': { colors:['黑色','白色','蓝色','金色'], rams:['6GB'], roms:['128GB','256GB'] },
+  '畅享 70X 尊享版': { colors:['黑色','白色','蓝色','金色'], rams:['4GB'], roms:['128GB'] },
+  'Pocket 2': { colors:['黑色','白色','金色','绿色'], rams:['12GB'], roms:['256GB','512GB'] },
+
+  // 荣耀
+  'Magic V6': { colors:['黑色','白色','紫色','绿色'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Magic V5': { colors:['黑色','白色','紫色','绿色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Magic V Flip': { colors:['黑色','白色','紫色','绿色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Magic 9 Pro Max': { colors:['黑色','白色','绿色','紫色'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  'Magic 9 Pro': { colors:['黑色','白色','绿色','紫色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Magic 9': { colors:['黑色','白色','绿色','紫色'], rams:['8GB','12GB'], roms:['128GB','256GB'] },
+  'Magic 8 Pro': { colors:['黑色','白色','蓝色','粉色'], rams:['8GB','12GB'], roms:['128GB','256GB'] },
+  'Magic 8': { colors:['黑色','白色','蓝色','粉色'], rams:['6GB','8GB'], roms:['128GB'] },
+  'Magic 7 Pro': { colors:['黑色','白色','蓝色','粉色'], rams:['6GB','8GB'], roms:['128GB'] },
+  '荣耀 400 Pro': { colors:['墨岩黑','茶卡青','庐烟紫','苍山灰','玉龙雪'], rams:['12GB','16GB'], roms:['256GB','512GB'] },
+  '荣耀 400': { colors:['墨岩黑','茶卡青','庐烟紫','苍山灰','玉龙雪'], rams:['12GB'], roms:['256GB','512GB'] },
+  '荣耀 300 Pro': { colors:['墨岩黑','茶卡青','庐烟紫','苍山灰','玉龙雪'], rams:['12GB'], roms:['256GB','512GB'] },
+  '荣耀 300': { colors:['墨岩黑','茶卡青','庐烟紫','苍山灰','玉龙雪'], rams:['8GB','12GB'], roms:['256GB','512GB'] },
+  '荣耀 X70': { colors:['黑色','白色','蓝色','绿色'], rams:['8GB'], roms:['128GB','256GB'] },
+  '荣耀 X60 Pro': { colors:['黑色','白色','蓝色','绿色'], rams:['8GB'], roms:['128GB','256GB'] },
+  '荣耀 X60': { colors:['黑色','白色','蓝色','绿色'], rams:['6GB','8GB'], roms:['128GB'] },
+  '荣耀 X50': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+  '荣耀 畅玩 60 Plus': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+  '荣耀 畅玩 50': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB'], roms:['64GB','128GB'] },
+  '荣耀 Play 9T': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+  '荣耀 Play 9C': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB'], roms:['64GB','128GB'] },
+
+  // 三星
+  'S26': { colors:['旷宇黑','幽夜紫','浅云蓝','映雪白','绯霞金','镜月银'], rams:['12GB'], roms:['256GB'] },
+  'S26+': { colors:['旷宇黑','幽夜紫','浅云蓝','映雪白','绯霞金','镜月银'], rams:['12GB'], roms:['256GB'] },
+  'S26 Ultra': { colors:['旷宇黑','幽夜紫','浅云蓝','映雪白','绯霞金','镜月银'], rams:['12GB'], roms:['256GB','512GB'] },
+  'S25': { colors:['冷川蓝','暮河银','清霜绿','远海蓝','幽蓝黑','暖珊红','柔粉金'], rams:['12GB'], roms:['256GB','512GB'] },
+  'S25+': { colors:['冷川蓝','暮河银','清霜绿','远海蓝','幽蓝黑','暖珊红','柔粉金'], rams:['12GB'], roms:['256GB','512GB'] },
+  'S25 Ultra': { colors:['冷川蓝','暮河银','清霜绿','远海蓝','幽蓝黑','暖珊红','柔粉金'], rams:['12GB'], roms:['256GB','512GB'] },
+  'S24': { colors:['黑色','白色','紫色','黄色','绿色','橙色'], rams:['8GB'], roms:['128GB','256GB'] },
+  'S24+': { colors:['黑色','白色','紫色','黄色','绿色','橙色'], rams:['8GB','12GB'], roms:['256GB','512GB'] },
+  'S24 Ultra': { colors:['黑色','白色','紫色','黄色','绿色','橙色'], rams:['12GB'], roms:['256GB','512GB','1TB'] },
+  'S24 FE': { colors:['黑色','白色','紫色','黄色','绿色','橙色'], rams:['8GB'], roms:['128GB','256GB'] },
+  'Z Fold7': { colors:['黑色','白色','蓝色','绿色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Z Flip7': { colors:['黑色','白色','蓝色','绿色'], rams:['8GB','12GB'], roms:['256GB'] },
+  'Z Flip7 FE': { colors:['黑色','白色','蓝色','绿色'], rams:['8GB'], roms:['128GB','256GB'] },
+  'Z Fold6': { colors:['黑色','白色','蓝色','绿色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'Z Flip6': { colors:['黑色','白色','蓝色','绿色'], rams:['8GB','12GB'], roms:['256GB'] },
+  'Z TriFold': { colors:['黑色','白色','蓝色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'W26': { colors:['黑色','白色','蓝色','红色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'W25': { colors:['黑色','白色','蓝色','红色'], rams:['12GB'], roms:['256GB','512GB'] },
+  'W25 Flip': { colors:['黑色','白色','蓝色','红色'], rams:['8GB','12GB'], roms:['256GB'] },
+  'W24': { colors:['黑色','白色','蓝色','红色'], rams:['8GB','12GB'], roms:['256GB'] },
+  'A57 5G': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+  'A56 5G': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+  'A55 5G': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+  'A54 5G': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+  'A53 5G': { colors:['黑色','白色','蓝色','绿色'], rams:['4GB','6GB'], roms:['128GB'] },
+};
+
+/* ===== 读取 URL 参数 ===== */
+const params = new URLSearchParams(window.location.search);
+const modelName = params.get('model') || '未知机型';
+const price1 = parseInt(params.get('price1')) || 0;
+const price2 = parseInt(params.get('price2')) || 0;
+const price3 = parseInt(params.get('price3')) || 0;
+const price4 = parseInt(params.get('price4')) || 0;
+
+/* ===== 渲染商品信息 ===== */
+document.getElementById('productName').textContent = modelName;
+const phoneData = phoneDB[modelName] || { colors:['暂无数据'], rams:['暂不支持'], roms:['暂不支持'] };
+
+// 生成颜色选项
+const colorChips = document.getElementById('colorChips');
+phoneData.colors.forEach((c, i) => {
+  const chip = document.createElement('div');
+  chip.className = 'chip' + (i === 0 ? ' active' : '');
+  chip.textContent = c;
+  chip.addEventListener('click', () => {
+    colorChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    updateSummary();
+  });
+  colorChips.appendChild(chip);
+});
+
+// 生成 RAM 选项
+const ramChips = document.getElementById('ramChips');
+phoneData.rams.forEach((r, i) => {
+  const chip = document.createElement('div');
+  chip.className = 'chip' + (i === 0 ? ' active' : '');
+  chip.textContent = r;
+  chip.addEventListener('click', () => {
+    ramChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    updateSummary();
+  });
+  ramChips.appendChild(chip);
+});
+
+// 生成 ROM 选项
+const romChips = document.getElementById('romChips');
+phoneData.roms.forEach((r, i) => {
+  const chip = document.createElement('div');
+  chip.className = 'chip' + (i === 0 ? ' active' : '');
+  chip.textContent = r;
+  chip.addEventListener('click', () => {
+    romChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    updateSummary();
+  });
+  romChips.appendChild(chip);
+});
+
+/* ===== 成色选择 ===== */
+const conditionChips = document.getElementById('conditionChips');
+let currentMult = 1;
+conditionChips.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    conditionChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentMult = parseFloat(chip.dataset.mult);
+    updateSummary();
+  });
+});
+
+/* ===== 更新摘要和价格 ===== */
+function updateSummary() {
+  const color = colorChips.querySelector('.chip.active')?.textContent || '未选';
+  const cond = conditionChips.querySelector('.chip.active')?.textContent || '准新';
+  const ram = ramChips.querySelector('.chip.active')?.textContent || '未选';
+  const rom = romChips.querySelector('.chip.active')?.textContent || '未选';
+
+  document.getElementById('summaryColor').textContent = color;
+  document.getElementById('summaryCond').textContent = cond;
+  document.getElementById('summaryRam').textContent = ram;
+  document.getElementById('summaryRom').textContent = rom;
+
+  // 价格 = 准新价 × 成色系数（示例计算）
+  const basePrice = price1; // 准新价作为基准
+  const finalPrice = Math.round(basePrice * currentMult);
+  document.getElementById('summaryTotal').textContent = '¥' + finalPrice.toLocaleString();
+  document.getElementById('submitBtn').textContent = '立即支付 ¥' + finalPrice.toLocaleString();
+  document.getElementById('payAmount').innerHTML = '¥' + finalPrice.toLocaleString() + '<small>/' + modelName + '</small>';
+}
+
+/* ===== 初始摘要 ===== */
+document.getElementById('summaryProduct').textContent = modelName + '（参考价）';
+updateSummary();
+
+/* ===== 表单验证 ===== */
+document.getElementById('submitBtn').addEventListener('click', function() {
+  const name = document.getElementById('buyerName').value.trim();
+  const phone = document.getElementById('buyerPhone').value.trim();
+  const address = document.getElementById('buyerAddress').value.trim();
+
+  if (!name) { alert('请填写收货人姓名'); document.getElementById('buyerName').focus(); return; }
+  if (!/^1\d{10}$/.test(phone)) { alert('请输入正确的11位手机号'); document.getElementById('buyerPhone').focus(); return; }
+  if (!address) { alert('请填写收货地址'); document.getElementById('buyerAddress').focus(); return; }
+
+  // 检查是否选择了 RAM/ROM
+  const ram = ramChips.querySelector('.chip.active')?.textContent;
+  const rom = romChips.querySelector('.chip.active')?.textContent;
+  if (!ram || ram === '暂不支持') { alert('请选择运行内存（RAM）'); return; }
+  if (!rom || rom === '暂不支持') { alert('请选择机身存储（ROM）'); return; }
+
+  // 显示支付弹窗
+  document.getElementById('payOverlay').classList.add('active');
+});
+
+/* ===== 关闭支付弹窗 ===== */
+document.getElementById('payClose').addEventListener('click', () => {
+  document.getElementById('payOverlay').classList.remove('active');
+});
+document.getElementById('payOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) {
+    document.getElementById('payOverlay').classList.remove('active');
+  }
+});
+
+/* ===== 切换微信/支付宝 ===== */
+function switchPay(type) {
+  const tabW = document.getElementById('tabWechat');
+  const tabA = document.getElementById('tabAlipay');
+  const qrW = document.getElementById('qrWechat');
+  const qrA = document.getElementById('qrAlipay');
+
+  if (type === 'wechat') {
+    tabW.classList.add('active');
+    tabA.classList.remove('active');
+    qrW.style.display = 'flex';
+    qrA.style.display = 'none';
+  } else {
+    tabA.classList.add('active');
+    tabW.classList.remove('active');
+    qrA.style.display = 'flex';
+    qrW.style.display = 'none';
+  }
+}
+</script>
+</body>
+</html>
